@@ -1,16 +1,29 @@
 <template>
     <div>
         <div class="container">
-            <div class="schart-box">
-                <div class="content-title">回校统计</div>
-                <!-- <schart class="schart" canvasId="bar" :options="options1"></schart> -->
-                <v-chart class="schart" :options="bar" @click="clickBar" />
-                <el-dialog class="event-dialog" title="返校活动列表" :visible.sync="dialogVisible" width="30%">
-                    <el-row v-for="(item, index) in eventList" :key="index">
-                        <el-link :href="item.url" target="_blank">{{ index + 1 }}. {{ item.title }}</el-link>
-                    </el-row>
-                </el-dialog>
-            </div>
+            <!-- <div class="schart-box"> -->
+            <!-- <div class="content-title">回校统计</div> -->
+            <v-chart
+                ref="mychart"
+                v-bind:style="{ width: chartwidth, height: chartheight }"
+                :options="bar"
+                @click="clickBar"
+                v-if="apistatus == 'normal'"
+            />
+            <p v-else-if="apistatus == 'unauth'">秘钥验证失败，图表无法显示</p>
+            <p v-else>访问次数超过限制，请稍后再试</p>
+            <!-- <v-chart ref="mychart" :styles="schart" :options="bar" @click="clickBar" /> -->
+            <el-dialog
+                class="event-dialog"
+                :title="dialogTitle"
+                :visible.sync="dialogVisible"
+                width="30%"
+            >
+                <el-row v-for="(item, index) in eventList" :key="index">
+                    <el-link :href="item.url" target="_blank">{{ index + 1 }}. {{ item.title }}</el-link>
+                </el-row>
+            </el-dialog>
+            <!-- </div> -->
         </div>
     </div>
 </template>
@@ -19,9 +32,7 @@
 import ECharts from 'vue-echarts/components/ECharts';
 import 'echarts';
 
-import 'tui-calendar/dist/tui-calendar.css';
-
-var baseUrl = 'http://localhost:8080';
+var baseUrl = 'http://localhost:8080'; //后台python地址
 
 var data = [
     [2016, 2018, 2, '2016级 2018年 访问2次', 'https://www.bilibili.com/', '哔哩哔哩', 'https://www.bilibili.com/', '哔哩哔哩'],
@@ -119,19 +130,22 @@ export default {
         return {
             dialogVisible: false,
             eventList: [],
+            xUnit: '年',
+            yUnit: '级',
+            dataname: '返校活动',
             bar: {
-                backgroundColor: new ECharts.graphic.RadialGradient(0.3, 0.3, 0.8, [
-                    {
-                        offset: 0,
-                        color: '#f7f8fa'
-                    },
-                    {
-                        offset: 1,
-                        color: '#cdd0d5'
-                    }
-                ]),
+                // backgroundColor: new ECharts.graphic.RadialGradient(0.3, 0.3, 0.8, [
+                //     {
+                //         offset: 0,
+                //         color: '#f7f8fa'
+                //     },
+                //     {
+                //         offset: 1,
+                //         color: '#cdd0d5'
+                //     }
+                // ]),
                 title: {
-                    text: '返校密度气泡图'
+                    text: ''
                 },
                 tooltip: {
                     padding: 10,
@@ -139,24 +153,7 @@ export default {
                     borderColor: '#777',
                     borderWidth: 1,
                     // alwaysShowContent: true,
-                    formatter: function(obj) {
-                        let value = obj.value;
-                        let schema = '';
-                        for (let i = 0; i < value[2] * 2; i += 2) {
-                            schema += i / 2 + 1;
-                            schema += '. ' + value[i + 5] + '</br>';
-                        }
-                        return (
-                            '<div style="border-bottom: 1px solid rgba(255,255,255,.3); font-size: 18px;padding-bottom: 7px;margin-bottom: 7px">' +
-                            value[0] +
-                            '级' +
-                            value[1] +
-                            '年' +
-                            obj.seriesName +
-                            '</div>' +
-                            schema
-                        );
-                    }
+                    formatter: this.tooltipFormatter
                 },
                 xAxis: {
                     type: 'value',
@@ -175,11 +172,19 @@ export default {
                         show: false
                     },
                     axisLabel: {
-                        formatter: '{value} 年',
+                        // formatter: '{value} 年',
                         showMinLabel: false,
                         showMaxLabel: false
                     },
-                    scale: true
+                    scale: true,
+                    axisPointer: {
+                        show: true,
+                        triggerTooltip: false,
+                        snap: true,
+                        label: {
+                            precision: 0
+                        }
+                    }
                 },
                 yAxis: {
                     type: 'value',
@@ -187,15 +192,28 @@ export default {
                     min: 1955,
                     max: 2020,
                     minInterval: 1,
+                    // nameGap: 40,
+                    // nameLocation: 'middle',
+                    // nameTextStyle: {
+                    //     fontSize: 18
+                    // },
                     splitLine: {
                         show: false
                     },
                     axisLabel: {
-                        formatter: '{value} 级',
+                        // formatter: '{value} 级',
                         showMinLabel: false,
                         showMaxLabel: false
                     },
-                    scale: true
+                    scale: true,
+                    axisPointer: {
+                        show: true,
+                        triggerTooltip: false,
+                        snap: true,
+                        label: {
+                            precision: 0
+                        }
+                    }
                 },
                 dataZoom: [
                     {
@@ -212,6 +230,19 @@ export default {
                         filterMode: 'empty'
                         // labelPrecision: 1
                     }
+                    // {
+                    //     type: 'slider',
+                    //     show: true,
+                    //     xAxisIndex: [0],
+                    //     labelPrecision: 0
+                    // },
+                    // {
+                    //     type: 'slider',
+                    //     show: true,
+                    //     yAxisIndex: [0],
+                    //     labelPrecision: 0,
+                    //     left: '93%'
+                    // }
                 ],
                 dataset: {
                     // 在这里设置数据，在别处设不会自动更新图表
@@ -219,7 +250,7 @@ export default {
                 },
                 series: [
                     {
-                        name: '返校活动列表',
+                        name: '气泡图',
                         // data: data,
                         type: 'scatter',
                         symbolSize: function(data) {
@@ -234,38 +265,88 @@ export default {
                                 },
                                 position: 'top'
                             }
-                        },
-                        itemStyle: {
-                            shadowBlur: 10,
-                            shadowColor: 'rgba(120, 36, 50, 0.5)',
-                            shadowOffsetY: 5,
-                            color: new ECharts.graphic.RadialGradient(0.4, 0.3, 1, [
-                                {
-                                    offset: 0,
-                                    color: 'rgb(251, 118, 123)'
-                                },
-                                {
-                                    offset: 1,
-                                    color: 'rgb(204, 46, 72)'
-                                }
-                            ])
                         }
+                        // itemStyle: {
+                        //     shadowBlur: 10,
+                        //     shadowColor: 'rgba(120, 36, 50, 0.5)',
+                        //     shadowOffsetY: 5,
+                        //     color: new ECharts.graphic.RadialGradient(0.4, 0.3, 1, [
+                        //         {
+                        //             offset: 0,
+                        //             color: 'rgb(251, 118, 123)'
+                        //         },
+                        //         {
+                        //             offset: 1,
+                        //             color: 'rgb(204, 46, 72)'
+                        //         }
+                        //     ])
+                        // }
                     }
                 ]
-            }
+            },
+            chartwidth: '600px',
+            chartheight: '600px',
+            apistatus: 'normal'
         };
     },
     mounted() {
+        window.console.log('args: ', this.$route.params.id, ', ', this.$route.params.key);
+        var token = this.$route.params.key;
         this.$axios
-            .get(baseUrl + '/api/section/2')
+            .get(baseUrl + '/api/section/' + this.$route.params.id + '/api', {
+                headers: { Authorization: 'Bearer ' + token }
+            })
             .then(response => {
                 window.console.log(response);
                 this.bar.dataset.source = response.data.graph.data;
+
+                // set axis and title
+                this.dataname = response.data.name;
+
+                this.bar.xAxis.name = response.data.graph.x_axis.title;
+                this.bar.xAxis.axisLabel.formatter = '{value} ' + response.data.graph.x_axis.unit;
+                this.bar.xAxis.axisPointer.label.formatter = this.bar.xAxis.axisLabel.formatter;
+                this.xUnit = response.data.graph.x_axis.unit;
+                this.bar.yAxis.name = response.data.graph.y_axis.title;
+                this.bar.yAxis.axisLabel.formatter = '{value} ' + response.data.graph.y_axis.unit;
+                this.bar.yAxis.axisPointer.label.formatter = this.bar.yAxis.axisLabel.formatter;
+                this.yUnit = response.data.graph.y_axis.unit;
+
+                this.bar.title.text = this.dataname + '气泡图';
+                this.apistatus = 'normal';
             })
             .catch(error => {
-                window.console.log(error);
+                window.console.log(error, error.response);
+                if (error.response.status == 429) {
+                    this.apistatus = 'limited';
+                } else {
+                    this.apistatus = 'unauth';
+                }
             });
+
+        //初始化图表大小
+        this.changeChartSize();
     },
+    computed: {
+        dialogTitle() {
+            return this.dataname + '事件列表';
+        },
+        schart() {
+            return {
+                width: window.innerWidth,
+                height: window.innerHeight
+            };
+        }
+    },
+
+    //设置窗口大小变化的监听函数
+    created() {
+        window.addEventListener('resize', this.changeChartSize);
+    },
+    destroyed() {
+        window.removeEventListener('resize', this.changeChartSize);
+    },
+
     methods: {
         clickBar(param) {
             window.console.log(param);
@@ -275,6 +356,40 @@ export default {
                 this.eventList.push({ url: list[i + 4], title: list[i + 5] });
             }
             this.dialogVisible = true;
+        },
+
+        //让图表大小自适应窗口
+        changeChartSize(e) {
+            window.console.log(e, window.innerWidth + 'px', window.innerHeight + 'px');
+            window.console.log(this.$refs.mychart);
+            this.chartwidth = window.innerWidth + 'px';
+            this.chartheight = window.innerHeight + 'px';
+            setTimeout(() => {
+                this.$refs.mychart.resize();
+            }, 100);
+        },
+
+        tooltipFormatter(obj) {
+            let value = obj.value;
+            let schema = '';
+            for (let i = 0; i < value[2] * 2; i += 2) {
+                schema += i / 2 + 1;
+                schema += '. ' + value[i + 5] + '</br>';
+            }
+            // console.log(obj);
+            return (
+                '<div style="border-bottom: 1px solid rgba(255,255,255,.3); font-size: 18px;padding-bottom: 7px;margin-bottom: 7px">' +
+                value[0] +
+                this.xUnit +
+                ' ' +
+                value[1] +
+                this.yUnit +
+                ', ' +
+                this.dataname +
+                '事件列表:' +
+                '</div>' +
+                schema
+            );
         }
     }
 };
@@ -289,8 +404,7 @@ export default {
     margin: 0 20px 0 20px;
 }
 .schart {
-    width: 1200px;
-    height: 800px;
+    width: 100%;
 }
 .content-title {
     clear: both;

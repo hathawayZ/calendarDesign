@@ -1,21 +1,11 @@
 <template>
-  <div id="app">
-      <basecharts></basecharts>
-  </div>
+    <div id="app">
+        <router-view></router-view>
+    </div>
 </template>
 
 <script>
-
-import Basecharts from "./components/BaseCharts";
-
-export default {
-  name: 'app',
-  components: {
-    Basecharts
-  }
-}
 </script>
 
 <style>
-
 </style>
