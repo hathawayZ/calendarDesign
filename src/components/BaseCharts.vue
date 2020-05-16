@@ -3,6 +3,14 @@
         <div class="container">
             <!-- <div class="schart-box"> -->
             <!-- <div class="content-title">回校统计</div> -->
+            <div class="group-unit-box">
+                事件聚集单位：
+                <el-radio-group v-model="groupRange" size="medium" @change="groupRangeChange">
+                    <el-radio label="1年"></el-radio>
+                    <el-radio label="5年"></el-radio>
+                    <el-radio label="10年"></el-radio>
+                </el-radio-group>
+            </div>
             <v-chart
                 ref="mychart"
                 v-bind:style="{ width: chartwidth, height: chartheight }"
@@ -286,44 +294,14 @@ export default {
             },
             chartwidth: '600px',
             chartheight: '600px',
-            apistatus: 'normal'
+            apistatus: 'normal',
+            groupRange: '1年'
         };
     },
     mounted() {
         window.console.log('args: ', this.$route.params.id, ', ', this.$route.params.key);
-        var token = this.$route.params.key;
-        this.$axios
-            .get(baseUrl + '/api/section/' + this.$route.params.id + '/api', {
-                headers: { Authorization: 'Bearer ' + token }
-            })
-            .then(response => {
-                window.console.log(response);
-                this.bar.dataset.source = response.data.graph.data;
 
-                // set axis and title
-                this.dataname = response.data.name;
-
-                this.bar.xAxis.name = response.data.graph.x_axis.title;
-                this.bar.xAxis.axisLabel.formatter = '{value} ' + response.data.graph.x_axis.unit;
-                this.bar.xAxis.axisPointer.label.formatter = this.bar.xAxis.axisLabel.formatter;
-                this.xUnit = response.data.graph.x_axis.unit;
-                this.bar.yAxis.name = response.data.graph.y_axis.title;
-                this.bar.yAxis.axisLabel.formatter = '{value} ' + response.data.graph.y_axis.unit;
-                this.bar.yAxis.axisPointer.label.formatter = this.bar.yAxis.axisLabel.formatter;
-                this.yUnit = response.data.graph.y_axis.unit;
-
-                this.bar.title.text = this.dataname + '气泡图';
-                this.apistatus = 'normal';
-            })
-            .catch(error => {
-                window.console.log(error, error.response);
-                if (error.response.status == 429) {
-                    this.apistatus = 'limited';
-                } else {
-                    this.apistatus = 'unauth';
-                }
-            });
-
+        this.updateData();
         //初始化图表大小
         this.changeChartSize();
     },
@@ -356,6 +334,58 @@ export default {
                 this.eventList.push({ url: list[i + 4], title: list[i + 5] });
             }
             this.dialogVisible = true;
+        },
+
+        // 聚集范围更改回调
+        groupRangeChange(dest) {
+            // console.log('group range change to:', dest);
+            this.updateData();
+        },
+
+        updateData() {
+            var groupunit = 1;
+            if (this.groupRange == '1年') {
+                groupunit = 1;
+            } else if (this.groupRange == '5年') {
+                groupunit = 5;
+            } else {
+                groupunit = 10;
+            }
+            var param = { groupunit };
+
+            var token = this.$route.params.key;
+            this.$axios
+                .get(baseUrl + '/api/section/' + this.$route.params.id + '/api', {
+                    params: param,
+                    headers: { Authorization: 'Bearer ' + token }
+                })
+                .then(response => {
+                    window.console.log(response);
+                    this.bar.dataset.source = response.data.graph.data;
+
+                    // set axis and title
+                    this.dataname = response.data.name;
+
+                    this.bar.xAxis.name = response.data.graph.x_axis.title;
+                    this.bar.xAxis.axisLabel.formatter = '{value} ' + response.data.graph.x_axis.unit;
+                    this.bar.xAxis.axisPointer.label.formatter = this.bar.xAxis.axisLabel.formatter;
+                    this.xUnit = response.data.graph.x_axis.unit;
+                    this.bar.yAxis.name = response.data.graph.y_axis.title;
+                    this.bar.yAxis.axisLabel.formatter = '{value} ' + response.data.graph.y_axis.unit;
+                    this.bar.yAxis.axisPointer.label.formatter = this.bar.yAxis.axisLabel.formatter;
+                    this.yUnit = response.data.graph.y_axis.unit;
+
+                    this.bar.title.text = this.dataname + '气泡图';
+                    this.apistatus = 'normal';
+                })
+                .catch(error => {
+                    window.console.log(error, error.response);
+                    if (error.response.status == 429) {
+                        this.apistatus = 'limited';
+                    } else {
+                        this.apistatus = 'unauth';
+                    }
+                });
         },
 
         //让图表大小自适应窗口
@@ -412,5 +442,10 @@ export default {
     line-height: 50px;
     font-size: 22px;
     color: #1f2f3d;
+}
+.group-unit-box {
+    padding: 10px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
 }
 </style>
