@@ -1,14 +1,29 @@
 <template>
     <div>
-        <div class="container">
+        <div class="container" ref="chartdiv" style="height: 85%">
             <!-- <div class="schart-box"> -->
             <!-- <div class="content-title">回校统计</div> -->
             <div class="group-unit-box">
-                事件聚集单位：
+                x轴聚集基数：
                 <el-radio-group v-model="groupRange" size="medium" @change="groupRangeChange">
-                    <el-radio label="1年"></el-radio>
-                    <el-radio label="5年"></el-radio>
-                    <el-radio label="10年"></el-radio>
+                    <el-radio label="1"></el-radio>
+                    <el-radio label="5"></el-radio>
+                    <el-radio label="10"></el-radio>
+                </el-radio-group>
+            </div>
+            <div class="group-unit-box" v-if="axisType == '连续值'">
+                y轴聚集基数：
+                <el-radio-group v-model="ygroupRange" size="medium" @change="groupRangeChange">
+                    <el-radio label="1"></el-radio>
+                    <el-radio label="5"></el-radio>
+                    <el-radio label="10"></el-radio>
+                </el-radio-group>
+            </div>
+            <div class="group-unit-box" v-else>
+                y轴按分类聚集：
+                <el-radio-group v-model="ygroupClass" size="medium" @change="groupRangeChange">
+                    <el-radio v-for="item in yClasses" :label="item.label" :key="item.label"></el-radio>
+                    <el-radio label="不聚集"></el-radio>
                 </el-radio-group>
             </div>
             <v-chart
@@ -41,6 +56,24 @@ import ECharts from 'vue-echarts/components/ECharts';
 import 'echarts';
 
 var baseUrl = 'http://localhost:8080'; //后台python地址
+
+if (!String.prototype.splice) {
+    /**
+     * {JSDoc}
+     *
+     * The splice() method changes the content of a string by removing a range of
+     * characters and/or adding new characters.
+     *
+     * @this {String}
+     * @param {number} start Index at which to start changing the string.
+     * @param {number} delCount An integer indicating the number of old chars to remove.
+     * @param {string} newSubStr The String that is spliced in.
+     * @return {string} A new string with the spliced substring.
+     */
+    String.prototype.splice = function(start, delCount, newSubStr) {
+        return this.slice(0, start) + newSubStr + this.slice(start + Math.abs(delCount));
+    };
+}
 
 var data = [
     [2016, 2018, 2, '2016级 2018年 访问2次', 'https://www.bilibili.com/', '哔哩哔哩', 'https://www.bilibili.com/', '哔哩哔哩'],
@@ -155,6 +188,9 @@ export default {
                 title: {
                     text: ''
                 },
+                grid: {
+                    containLabel: true
+                },
                 tooltip: {
                     padding: 10,
                     backgroundColor: '#222',
@@ -168,8 +204,9 @@ export default {
                     name: '返校年份',
                     // max: 2020,
                     // min: 1980,
-                    min: 1956,
-                    max: 2020,
+                    // min: 1956,
+                    // max: 2020,
+                    boundaryGap: ['10%', '10%'],
                     minInterval: 1,
                     nameGap: 25,
                     nameLocation: 'middle',
@@ -197,8 +234,9 @@ export default {
                 yAxis: {
                     type: 'value',
                     name: '毕业年份',
-                    min: 1955,
-                    max: 2020,
+                    // min: 1955,
+                    // max: 2020,
+                    boundaryGap: ['10%', '10%'],
                     minInterval: 1,
                     // nameGap: 40,
                     // nameLocation: 'middle',
@@ -295,7 +333,12 @@ export default {
             chartwidth: '600px',
             chartheight: '600px',
             apistatus: 'normal',
-            groupRange: '1年'
+            groupRange: '1',
+            ygroupRange: '1',
+            ygroupClass: '不聚集',
+            axisType: '未定',
+            yClasses: [{ label: '学校' }, { label: '学部' }, { label: '学院' }],
+            ylabels: []
         };
     },
     mounted() {
@@ -337,21 +380,22 @@ export default {
         },
 
         // 聚集范围更改回调
-        groupRangeChange(dest) {
+        groupRangeChange() {
             // console.log('group range change to:', dest);
             this.updateData();
         },
 
         updateData() {
-            var groupunit = 1;
-            if (this.groupRange == '1年') {
-                groupunit = 1;
-            } else if (this.groupRange == '5年') {
-                groupunit = 5;
+            var groupunit = parseInt(this.groupRange);
+            var ygroup = 1;
+            if (this.axisType == '未定') {
+                ygroup = '未定';
+            } else if (this.axisType == '连续值') {
+                ygroup = parseInt(this.ygroupRange);
             } else {
-                groupunit = 10;
+                ygroup = this.ygroupClass;
             }
-            var param = { groupunit };
+            var param = { groupunit, ygroup };
 
             var token = this.$route.params.key;
             this.$axios
@@ -371,12 +415,38 @@ export default {
                     this.bar.xAxis.axisPointer.label.formatter = this.bar.xAxis.axisLabel.formatter;
                     this.xUnit = response.data.graph.x_axis.unit;
                     this.bar.yAxis.name = response.data.graph.y_axis.title;
-                    this.bar.yAxis.axisLabel.formatter = '{value} ' + response.data.graph.y_axis.unit;
-                    this.bar.yAxis.axisPointer.label.formatter = this.bar.yAxis.axisLabel.formatter;
-                    this.yUnit = response.data.graph.y_axis.unit;
+                    if (response.data.graph.y_axis.type == '连续值') {
+                        this.bar.yAxis.axisLabel.formatter = '{value} ' + response.data.graph.y_axis.unit;
+                        this.bar.yAxis.axisPointer.label.formatter = this.bar.yAxis.axisLabel.formatter;
+                        this.bar.yAxis.axisPointer.label.show = true;
+                        this.yUnit = response.data.graph.y_axis.unit;
+                    } else {
+                        this.ylabels = [];
+                        for (var ele of response.data.graph.data) {
+                            var newlabel = ele[4];
+                            var newlines = Math.floor(ele[4].length / 8) + (ele[4].length % 8 != 0 ? 1 : 0) - 1;
+                            window.console.log(newlabel, newlines);
+                            for (var i = 0; i < newlines; i++) {
+                                newlabel = newlabel.splice(8 + i * 8 + i, 0, '\n');
+                            }
+                            this.ylabels.push(newlabel);
+                        }
+                        window.console.log(this.ylabels);
+                        this.bar.yAxis.axisLabel.formatter = (value, index) => {
+                            return this.ylabels[index - 1];
+                        };
+                        this.bar.yAxis.axisPointer.label.show = false;
+                        // this.bar.yAxis.axisPointer.label.formatter = this.bar.yAxis.axisLabel.formatter;
+                    }
 
                     this.bar.title.text = this.dataname + '气泡图';
-                    this.apistatus = 'normal';
+
+                    this.axisType = response.data.graph.y_axis.type;
+                    this.yClasses = [];
+                    for (var k = 0; k < response.data.graph.y_axis.fields.length; k++) {
+                        this.yClasses.push({ label: response.data.graph.y_axis.fields[k] });
+                    }
+                    window.console.log('yclasses:', this.yClasses);
                 })
                 .catch(error => {
                     window.console.log(error, error.response);
@@ -393,7 +463,7 @@ export default {
             window.console.log(e, window.innerWidth + 'px', window.innerHeight + 'px');
             window.console.log(this.$refs.mychart);
             this.chartwidth = window.innerWidth + 'px';
-            this.chartheight = window.innerHeight + 'px';
+            this.chartheight = window.innerHeight * 0.85 + 'px';
             setTimeout(() => {
                 this.$refs.mychart.resize();
             }, 100);
@@ -404,18 +474,20 @@ export default {
             let schema = '';
             for (let i = 0; i < value[2] * 2; i += 2) {
                 schema += i / 2 + 1;
-                schema += '. ' + value[i + 5] + '</br>';
+                schema += '. ' + value[i + 6] + '</br>';
             }
             // console.log(obj);
             return (
                 '<div style="border-bottom: 1px solid rgba(255,255,255,.3); font-size: 18px;padding-bottom: 7px;margin-bottom: 7px">' +
-                value[0] +
-                this.xUnit +
-                ' ' +
-                value[1] +
-                this.yUnit +
+                // value[0] +
+                // this.xUnit +
+                // ' ' +
+                // value[1] +
+                // this.yUnit +
+                // ', ' +
+                // this.dataname +
+                value[3] +
                 ', ' +
-                this.dataname +
                 '事件列表:' +
                 '</div>' +
                 schema
