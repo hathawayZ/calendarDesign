@@ -336,7 +336,7 @@ export default {
             groupRange: '1',
             ygroupRange: '1',
             ygroupClass: '不聚集',
-            axisType: '未定',
+            axisType: '连续值',
             yClasses: [{ label: '学校' }, { label: '学部' }, { label: '学院' }],
             ylabels: []
         };
@@ -388,9 +388,7 @@ export default {
         updateData() {
             var groupunit = parseInt(this.groupRange);
             var ygroup = 1;
-            if (this.axisType == '未定') {
-                ygroup = '未定';
-            } else if (this.axisType == '连续值') {
+            if (this.axisType == '连续值') {
                 ygroup = parseInt(this.ygroupRange);
             } else {
                 ygroup = this.ygroupClass;
