@@ -338,7 +338,8 @@ export default {
             ygroupClass: '不聚集',
             axisType: '连续值',
             yClasses: [{ label: '学校' }, { label: '学部' }, { label: '学院' }],
-            ylabels: []
+            ylabels: [],
+            alldata: {}
         };
     },
     mounted() {
@@ -382,69 +383,80 @@ export default {
         // 聚集范围更改回调
         groupRangeChange() {
             // console.log('group range change to:', dest);
-            this.updateData();
+            // this.updateData();
+            this.updateChart();
+        },
+
+        updateChart() {
+            // var groupunit = parseInt(this.groupRange);
+            // var ygroup = 1;
+            // if (this.axisType == '连续值') {
+            //     ygroup = parseInt(this.ygroupRange);
+            // } else {
+            //     ygroup = this.ygroupClass;
+            // }
+            // var param = { groupunit, ygroup };
+
+            var filter = this.groupRange + '_' + (this.axisType == '连续值' ? this.ygroupRange : this.ygroupClass);
+            window.console.log('filter is ', filter);
+
+            var curdata = this.alldata[filter];
+
+            this.bar.dataset.source = curdata.graph.data;
+
+            // set axis and title
+            this.dataname = curdata.name;
+
+            this.bar.xAxis.name = curdata.graph.x_axis.title;
+            this.bar.xAxis.axisLabel.formatter = '{value} ' + curdata.graph.x_axis.unit;
+            this.bar.xAxis.axisPointer.label.formatter = this.bar.xAxis.axisLabel.formatter;
+            this.xUnit = curdata.graph.x_axis.unit;
+            this.bar.yAxis.name = curdata.graph.y_axis.title;
+            if (curdata.graph.y_axis.type == '连续值') {
+                this.bar.yAxis.axisLabel.formatter = '{value} ' + curdata.graph.y_axis.unit;
+                this.bar.yAxis.axisPointer.label.formatter = this.bar.yAxis.axisLabel.formatter;
+                this.bar.yAxis.axisPointer.label.show = true;
+                this.yUnit = curdata.graph.y_axis.unit;
+            } else {
+                this.ylabels = [];
+                for (var ele of curdata.graph.data) {
+                    var newlabel = ele[4];
+                    var newlines = Math.floor(ele[4].length / 8) + (ele[4].length % 8 != 0 ? 1 : 0) - 1;
+                    window.console.log(newlabel, newlines);
+                    for (var i = 0; i < newlines; i++) {
+                        newlabel = newlabel.splice(8 + i * 8 + i, 0, '\n');
+                    }
+                    this.ylabels.push(newlabel);
+                }
+                window.console.log(this.ylabels);
+                this.bar.yAxis.axisLabel.formatter = (value, index) => {
+                    return this.ylabels[index - 1];
+                };
+                this.bar.yAxis.axisPointer.label.show = false;
+                // this.bar.yAxis.axisPointer.label.formatter = this.bar.yAxis.axisLabel.formatter;
+            }
+
+            this.bar.title.text = this.dataname + '气泡图';
+
+            this.axisType = curdata.graph.y_axis.type;
+            this.yClasses = [];
+            for (var k = 0; k < curdata.graph.y_axis.fields.length; k++) {
+                this.yClasses.push({ label: curdata.graph.y_axis.fields[k] });
+            }
+            window.console.log('yclasses:', this.yClasses);
         },
 
         updateData() {
-            var groupunit = parseInt(this.groupRange);
-            var ygroup = 1;
-            if (this.axisType == '连续值') {
-                ygroup = parseInt(this.ygroupRange);
-            } else {
-                ygroup = this.ygroupClass;
-            }
-            var param = { groupunit, ygroup };
-
             var token = this.$route.params.key;
             this.$axios
-                .get(baseUrl + '/api/section/' + this.$route.params.id + '/api', {
-                    params: param,
+                .get(baseUrl + '/api/section/' + this.$route.params.id + '/alldata', {
+                    // params: param,
                     headers: { Authorization: 'Bearer ' + token }
                 })
                 .then(response => {
                     window.console.log(response);
-                    this.bar.dataset.source = response.data.graph.data;
-
-                    // set axis and title
-                    this.dataname = response.data.name;
-
-                    this.bar.xAxis.name = response.data.graph.x_axis.title;
-                    this.bar.xAxis.axisLabel.formatter = '{value} ' + response.data.graph.x_axis.unit;
-                    this.bar.xAxis.axisPointer.label.formatter = this.bar.xAxis.axisLabel.formatter;
-                    this.xUnit = response.data.graph.x_axis.unit;
-                    this.bar.yAxis.name = response.data.graph.y_axis.title;
-                    if (response.data.graph.y_axis.type == '连续值') {
-                        this.bar.yAxis.axisLabel.formatter = '{value} ' + response.data.graph.y_axis.unit;
-                        this.bar.yAxis.axisPointer.label.formatter = this.bar.yAxis.axisLabel.formatter;
-                        this.bar.yAxis.axisPointer.label.show = true;
-                        this.yUnit = response.data.graph.y_axis.unit;
-                    } else {
-                        this.ylabels = [];
-                        for (var ele of response.data.graph.data) {
-                            var newlabel = ele[4];
-                            var newlines = Math.floor(ele[4].length / 8) + (ele[4].length % 8 != 0 ? 1 : 0) - 1;
-                            window.console.log(newlabel, newlines);
-                            for (var i = 0; i < newlines; i++) {
-                                newlabel = newlabel.splice(8 + i * 8 + i, 0, '\n');
-                            }
-                            this.ylabels.push(newlabel);
-                        }
-                        window.console.log(this.ylabels);
-                        this.bar.yAxis.axisLabel.formatter = (value, index) => {
-                            return this.ylabels[index - 1];
-                        };
-                        this.bar.yAxis.axisPointer.label.show = false;
-                        // this.bar.yAxis.axisPointer.label.formatter = this.bar.yAxis.axisLabel.formatter;
-                    }
-
-                    this.bar.title.text = this.dataname + '气泡图';
-
-                    this.axisType = response.data.graph.y_axis.type;
-                    this.yClasses = [];
-                    for (var k = 0; k < response.data.graph.y_axis.fields.length; k++) {
-                        this.yClasses.push({ label: response.data.graph.y_axis.fields[k] });
-                    }
-                    window.console.log('yclasses:', this.yClasses);
+                    this.alldata = response.data;
+                    this.updateChart();
                 })
                 .catch(error => {
                     window.console.log(error, error.response);
